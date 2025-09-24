@@ -173,7 +173,7 @@ int main (int argc, char** argv)
     auto tv = std::make_unique<mplot::TxtVisual<>> (ss.str(), sm::vec<float>{-1,1.3,0},
                                                     mplot::TextFeatures{0.05f, centre_horz});
     v.bindmodel (tv);
-    tv->twodimensional = true;
+    tv->twodimensional (true);
     tv->finalize();
     v.addVisualModel (tv);
 
