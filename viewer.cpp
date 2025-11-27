@@ -22,6 +22,7 @@
 #include <mplot/TxtVisual.h>
 #include <mplot/ColourBarVisual.h>
 #include <mplot/HealpixVisual.h>
+#include <mplot/SphericalProjectionVisual.h>
 #include <mplot/unicode.h>
 
 #include <chealpix.h>
@@ -187,6 +188,31 @@ int main (int argc, char** argv)
     cbv->scale = hpvp->colourScale;
     cbv->finalize();
     v.addVisualModel (cbv);
+
+    // Create data for 2D projection (latitude-lonigtude and a copy of the colours)
+    sm::vvec<std::array<float, 3>> hpvcolours (hpvp->pixeldata.size(), mplot::colour::crimson);
+    sm::vvec<sm::vec<float, 2>> latlong (hpvp->pixeldata.size());
+    for (uint32_t i = 0; i < hpvp->pixeldata.size(); ++i) {
+        // ang.theta is co-latitude (and needs re-casting to be longitude), ang.phi is a longitude
+        hp::t_ang ang = hp::nest2ang (hpvp->get_nside(), i);
+        // ang.theta is pi for the South pole and 0 for the North pole
+        // latitude should be in range -pi/2 (S) < lat <= pi/2 (N)
+        float _lat = (sm::mathconst<float>::pi - ang.theta) - sm::mathconst<float>::pi_over_2;
+        latlong[i] = { _lat, static_cast<float>(ang.phi) };
+        hpvcolours[i] = hpvp->cm.convert (hpvp->colourScale.transform_one (hpvp->pixeldata[i]));
+    }
+
+    // Lastly, a 2D projection (no relief)
+    auto spv = std::make_unique<mplot::SphericalProjectionVisual<float>> (sm::vec<float>{-sm::mathconst<float>::pi,0,0});
+    v.bindmodel (spv);
+    spv->twodimensional (true);
+    spv->proj_type = sm::geometry::spherical_projection::type::cassini;
+    spv->latlong = latlong;
+    spv->colour = hpvcolours;
+    spv->finalize();
+    auto spvp = v.addVisualModel (spv);
+    auto ext = spvp->extents();
+    spvp->addLabel ("Cassini projection", sm::vec<>{ ext[0].min, ext[1].min - 0.16f, 0.0f }, mplot::TextFeatures(0.08f));
 
     v.keepOpen(); // Until user quits with Ctrl-q
     return 0;
