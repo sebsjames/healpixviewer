@@ -23,5 +23,9 @@
 
     "desc_order_reduce" : "The number of orders to reduce the HEALPix map from the data. For example, to show nside=2048 data, which is 11th order, on a 10th order, nside=1024 HEALPix, set order_reduce to 1",
 
+    "desc_projection" : "Add equirectangular, cassini or mercator for a projection. You'll need about 16 GB of RAM and 12GB of GPU RAM and it'll take a little while to build the Voronoi cells to visualize",
+    "projection" : "",
+    "projection_position" : [ -5, 0, 0],
+
     "order_reduce" : 1
 }
