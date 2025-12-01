@@ -21,7 +21,13 @@
 
     "reliefmap_output_range" : [-0.00065, 0.0013 ],
 
+    "desc_projection" : "choose equirectangular, cassini or mercator, or simply omit this field or make it an empty string",
+
+    "projection" : "equirectangular",
+
+    "projection_position" : [ -5, 0, 0],
+
     "desc_order_reduce" : "The number of orders to reduce the HEALPix map from the data. For example, to show nside=2048 data, which is 11th order, on a 10th order, nside=1024 HEALPix, set order_reduce to 1. 10th order HEALPix with this code is less laggy than 11th order.",
 
-    "order_reduce" : 1
+    "order_reduce" : 3
 }

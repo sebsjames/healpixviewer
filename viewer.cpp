@@ -189,30 +189,50 @@ int main (int argc, char** argv)
     cbv->finalize();
     v.addVisualModel (cbv);
 
-    // Create data for 2D projection (latitude-lonigtude and a copy of the colours)
-    sm::vvec<std::array<float, 3>> hpvcolours (hpvp->pixeldata.size(), mplot::colour::crimson);
-    sm::vvec<sm::vec<float, 2>> latlong (hpvp->pixeldata.size());
-    for (uint32_t i = 0; i < hpvp->pixeldata.size(); ++i) {
-        // ang.theta is co-latitude (and needs re-casting to be longitude), ang.phi is a longitude
-        hp::t_ang ang = hp::nest2ang (hpvp->get_nside(), i);
-        // ang.theta is pi for the South pole and 0 for the North pole
-        // latitude should be in range -pi/2 (S) < lat <= pi/2 (N)
-        float _lat = (sm::mathconst<float>::pi - ang.theta) - sm::mathconst<float>::pi_over_2;
-        latlong[i] = { _lat, static_cast<float>(ang.phi) };
-        hpvcolours[i] = hpvp->cm.convert (hpvp->colourScale.transform_one (hpvp->pixeldata[i]));
-    }
+    // Lastly, an optional 2D projection (no relief)
+    std::string projection_type = conf.get<std::string>("projection", "");
+    if (!projection_type.empty()) {
 
-    // Lastly, a 2D projection (no relief)
-    auto spv = std::make_unique<mplot::SphericalProjectionVisual<float>> (sm::vec<float>{-sm::mathconst<float>::pi,0,0});
-    v.bindmodel (spv);
-    spv->twodimensional (true);
-    spv->proj_type = sm::geometry::spherical_projection::type::cassini;
-    spv->latlong = latlong;
-    spv->colour = hpvcolours;
-    spv->finalize();
-    auto spvp = v.addVisualModel (spv);
-    auto ext = spvp->extents();
-    spvp->addLabel ("Cassini projection", sm::vec<>{ ext[0].min, ext[1].min - 0.16f, 0.0f }, mplot::TextFeatures(0.08f));
+        // Get params from json
+        sm::geometry::spherical_projection::type ptype = sm::geometry::spherical_projection::type::equirectangular;
+        if (projection_type == "mercator") {
+            ptype = sm::geometry::spherical_projection::type::mercator;
+        } else if (projection_type == "cassini") {
+            ptype = sm::geometry::spherical_projection::type::cassini;
+        } else if (projection_type == "equirectangular") {
+            // ptype already set
+        } else {
+            std::cout << "Unknown projection " << projection_type << ", reverting to equirectangular\n";
+            projection_type = "equirectangular";
+        }
+        sm::vec<float> ppos = conf.getvec<float, 3>("projection_position");
+
+        // Create data for 2D projection (latitude-longitude and a copy of the colours)
+        sm::vvec<std::array<float, 3>> hpvcolours (hpvp->pixeldata.size(), mplot::colour::crimson);
+        sm::vvec<sm::vec<float, 2>> latlong (hpvp->pixeldata.size());
+        for (uint32_t i = 0; i < hpvp->pixeldata.size(); ++i) {
+            // ang.theta is co-latitude (and needs re-casting to be longitude), ang.phi is a longitude
+            hp::t_ang ang = hp::nest2ang (hpvp->get_nside(), i);
+            // ang.theta is pi for the South pole and 0 for the North pole
+            // latitude should be in range -pi/2 (S) < lat <= pi/2 (N)
+            float _lat = (sm::mathconst<float>::pi - ang.theta) - sm::mathconst<float>::pi_over_2;
+            latlong[i] = { _lat, static_cast<float>(ang.phi) };
+            hpvcolours[i] = hpvp->cm.convert (hpvp->colourScale.transform_one (hpvp->pixeldata[i]));
+        }
+
+        // Make the SphericalProjectionVisual
+        auto spv = std::make_unique<mplot::SphericalProjectionVisual<float>> (ppos);
+        v.bindmodel (spv);
+        spv->twodimensional (true);
+        spv->proj_type = ptype;
+        spv->latlong = latlong;
+        spv->colour = hpvcolours;
+        spv->finalize();
+        auto spvp = v.addVisualModel (spv);
+        auto ext = spvp->extents();
+        spvp->addLabel (projection_type + std::string(" projection"),
+                        sm::vec<>{ ext[0].min, ext[1].min - 0.16f, 0.0f }, mplot::TextFeatures(0.08f));
+    }
 
     v.keepOpen(); // Until user quits with Ctrl-q
     return 0;
