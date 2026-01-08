@@ -189,8 +189,12 @@ int main (int argc, char** argv)
     cbv->finalize();
     v.addVisualModel (cbv);
 
+    // The inverse of the initial rotation of the scene
+    sm::quaternion<float> qii = v.getSceneRotation().inverse();
+
     // Lastly, an optional 2D projection (no relief)
     std::string projection_type = conf.get<std::string>("projection", "");
+    mplot::SphericalProjectionVisual<float>* spvp = nullptr;
     if (!projection_type.empty()) {
 
         // Get params from json
@@ -228,12 +232,25 @@ int main (int argc, char** argv)
         spv->latlong = latlong;
         spv->colour = hpvcolours;
         spv->finalize();
-        auto spvp = v.addVisualModel (spv);
+        spvp = v.addVisualModel (spv);
         auto ext = spvp->extents();
         spvp->addLabel (projection_type + std::string(" projection"),
                         sm::vec<>{ ext[0].min, ext[1].min - 0.16f, 0.0f }, mplot::TextFeatures(0.08f));
     }
 
-    v.keepOpen(); // Until user quits with Ctrl-q
+    while (!v.readyToFinish()) {
+        v.waitevents (0.018);
+        if (spvp != nullptr) {
+            // What's the rotation of the scene now?
+            sm::quaternion<float> qr = v.getSceneRotation();
+            sm::quaternion<float> q = qii * qr;
+            q.renormalize();
+            if (q != spvp->get_rotation() && v.state.test (mplot::visual_state::mouseButtonLeftPressed) == false) {
+                spvp->set_rotation (qii * qr);
+                spvp->reinit();
+                v.render();
+            }
+        }
+    }
     return 0;
 }
