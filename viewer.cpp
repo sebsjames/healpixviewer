@@ -231,6 +231,7 @@ int main (int argc, char** argv)
         spv->proj_type = ptype;
         spv->latlong = latlong;
         spv->colour = hpvcolours;
+        spv->radius = conf.get<float> ("projection_radius", 1.0f);
         spv->finalize();
         spvp = v.addVisualModel (spv);
         auto ext = spvp->extents();

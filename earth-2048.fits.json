@@ -25,9 +25,15 @@
 
     "projection" : "equirectangular",
 
-    "projection_position" : [ -5, 0, 0],
+    "desc_projection_radius" : "A simple way to scale the 2D projection. 1 gives precise projection; <1 gives a smaller one",
+
+    "projection_radius" : 0.7,
+
+    "desc_projection_position" : "Where to place the 2D map",
+
+    "projection_position" : [ -3.8, 0, 0],
 
     "desc_order_reduce" : "The number of orders to reduce the HEALPix map from the data. For example, to show nside=2048 data, which is 11th order, on a 10th order, nside=1024 HEALPix, set order_reduce to 1. 10th order HEALPix with this code is less laggy than 11th order.",
 
-    "order_reduce" : 3
+    "order_reduce" : 4
 }
