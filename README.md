@@ -47,7 +47,7 @@ Debug mode.
 To build and run the viewer:
 
 ```bash
-git clone --recurse-submodules git@github.com:sebjameswml/healpixviewer
+git clone --recurse-submodules git@github.com:sebsjames/healpixviewer
 
 cd healpixviewer
 mkdir build
@@ -67,7 +67,7 @@ wget https://www.sfu.ca/physics/cosmology/healpix/data/earth-2048.fits
 ```
 Note that there is a JSON config file that matches this filename.
 
-You can open the Bayestar data that @lpsinger uses in his viewer (there's a .json file for this one too):
+You can open the Bayestar data that @lpsinger uses in his viewer (there's a .json file for this one too) *Note: this file is currently unavailable*:
 
 ```bash
 wget --no-check-certificate http://ligo.org/science/first2years/2015/compare/18951/bayestar.fits.gz
