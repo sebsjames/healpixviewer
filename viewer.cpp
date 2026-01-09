@@ -239,6 +239,7 @@ int main (int argc, char** argv)
                         sm::vec<>{ ext[0].min, ext[1].min - 0.16f, 0.0f }, mplot::TextFeatures(0.08f));
     }
 
+    v.render();
     while (!v.readyToFinish()) {
         v.waitevents (0.018);
         if (spvp != nullptr) {
