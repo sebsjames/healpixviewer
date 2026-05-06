@@ -22,6 +22,7 @@
 #include <mplot/TxtVisual.h>
 #include <mplot/ColourBarVisual.h>
 #include <mplot/HealpixVisual.h>
+#include <mplot/SphericalProjectionVisual.h>
 #include <mplot/unicode.h>
 
 #include <chealpix.h>
@@ -188,6 +189,71 @@ int main (int argc, char** argv)
     cbv->finalize();
     v.addVisualModel (cbv);
 
-    v.keepOpen(); // Until user quits with Ctrl-q
+    // The inverse of the initial rotation of the scene
+    sm::quaternion<float> qii = v.getSceneRotation().inverse();
+
+    // Lastly, an optional 2D projection (no relief)
+    std::string projection_type = conf.get<std::string>("projection", "");
+    mplot::SphericalProjectionVisual<float>* spvp = nullptr;
+    if (!projection_type.empty()) {
+
+        // Get params from json
+        sm::geometry::spherical_projection::type ptype = sm::geometry::spherical_projection::type::equirectangular;
+        if (projection_type == "mercator") {
+            ptype = sm::geometry::spherical_projection::type::mercator;
+        } else if (projection_type == "cassini") {
+            ptype = sm::geometry::spherical_projection::type::cassini;
+        } else if (projection_type == "equirectangular") {
+            // ptype already set
+        } else {
+            std::cout << "Unknown projection " << projection_type << ", reverting to equirectangular\n";
+            projection_type = "equirectangular";
+        }
+        sm::vec<float> ppos = conf.getvec<float, 3>("projection_position");
+
+        // Create data for 2D projection (latitude-longitude and a copy of the colours)
+        sm::vvec<std::array<float, 3>> hpvcolours (hpvp->pixeldata.size(), mplot::colour::crimson);
+        sm::vvec<sm::vec<float, 2>> latlong (hpvp->pixeldata.size());
+        for (uint32_t i = 0; i < hpvp->pixeldata.size(); ++i) {
+            // ang.theta is co-latitude (and needs re-casting to be longitude), ang.phi is a longitude
+            hp::t_ang ang = hp::nest2ang (hpvp->get_nside(), i);
+            // ang.theta is pi for the South pole and 0 for the North pole
+            // latitude should be in range -pi/2 (S) < lat <= pi/2 (N)
+            float _lat = (sm::mathconst<float>::pi - ang.theta) - sm::mathconst<float>::pi_over_2;
+            latlong[i] = { _lat, static_cast<float>(ang.phi) };
+            hpvcolours[i] = hpvp->cm.convert (hpvp->colourScale.transform_one (hpvp->pixeldata[i]));
+        }
+
+        // Make the SphericalProjectionVisual
+        auto spv = std::make_unique<mplot::SphericalProjectionVisual<float>> (ppos);
+        v.bindmodel (spv);
+        spv->twodimensional (true);
+        spv->proj_type = ptype;
+        spv->latlong = latlong;
+        spv->colour = hpvcolours;
+        spv->radius = conf.get<float> ("projection_radius", 1.0f);
+        spv->finalize();
+        spvp = v.addVisualModel (spv);
+        auto ext = spvp->extents();
+        spvp->addLabel (projection_type + std::string(" projection"),
+                        sm::vec<>{ ext[0].min, ext[1].min - 0.16f, 0.0f }, mplot::TextFeatures(0.08f));
+    }
+
+    v.render();
+
+    while (!v.readyToFinish()) {
+        v.waitevents (0.018);
+        if (spvp != nullptr) {
+            // What's the rotation of the scene now?
+            sm::quaternion<float> qr = v.getSceneRotation();
+            sm::quaternion<float> q = qii * qr;
+            q.renormalize();
+            if (q != spvp->get_rotation() && v.state.test (mplot::visual_state::mouseButtonLeftPressed) == false) {
+                spvp->set_rotation (qii * qr);
+                spvp->reinit();
+                v.render();
+            }
+        }
+    }
     return 0;
 }
