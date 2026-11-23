@@ -10,22 +10,26 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <memory>
+#include <iostream>
 #include <sstream>
-
-#include <sm/config>
-#include <sm/range>
-#include <sm/vvec>
-#include <sm/vec>
-#include <sm/quaternion>
-
-#include <mplot/Visual.h>
-#include <mplot/TxtVisual.h>
-#include <mplot/ColourBarVisual.h>
-#include <mplot/HealpixVisual.h>
-#include <mplot/SphericalProjectionVisual.h>
-#include <mplot/unicode.h>
-
+#include <cmath>
 #include <chealpix.h>
+
+import sm.config;
+import sm.interval;
+import sm.vvec;
+import sm.vec;
+import sm.quaternion;
+import sm.geometry;
+import sm.healpix_bare;
+
+import mplot.visual;
+import mplot.txtvisual;
+import mplot.colourbarvisual;
+import mplot.healpixvisual;
+import mplot.sphericalprojectionvisual;
+import mplot.unicode;
 
 int main (int argc, char** argv)
 {
@@ -52,11 +56,9 @@ int main (int argc, char** argv)
     int32_t order_reduce = 0;
     bool use_relief = false;
     std::string colourmap_type = "plasma";
-    sm::range<float> colourmap_input_range; // use value to indicate autoscaling
-    colourmap_input_range.search_init(); // sets min to numeric_limits<>::max and max to numeric_limits<>::lowest
-    sm::range<float> reliefmap_input_range;
-    reliefmap_input_range.search_init();
-    sm::range<float> reliefmap_output_range (0, 0.1f);
+    auto colourmap_input_range = sm::interval<float>::search_initialized(); // use value to indicate autoscaling
+    auto reliefmap_input_range = sm::interval<float>::search_initialized();
+    sm::interval<float> reliefmap_output_range (0, 0.1f);
 
     // Access config if it exists
     std::string conf_file = fitsfilename + ".json";
@@ -65,17 +67,17 @@ int main (int argc, char** argv)
     if (conf.ready) {
         // Allow command line overrides. e.g. viewer file.fits -co:colourmap_type=viridis
         conf.process_args (argc, argv);
-        order_reduce = conf.get<int32_t>("order_reduce", 0);
-        use_relief = conf.get<bool>("use_relief", false);
-        colourmap_type = conf.getString("colourmap_type", "plasma");
-        sm::vvec<float> tmp_vvec = conf.getvvec<float> ("colourmap_input_range");
+        order_reduce = conf.get<int32_t> ("order_reduce", 0);
+        use_relief = conf.get<bool> ("use_relief", false);
+        colourmap_type = conf.get<std::string> ("colourmap_type", "plasma");
+        sm::vvec<float> tmp_vvec = conf.get_vvec<float> ("colourmap_input_range");
         if (tmp_vvec.size() == 2) {
             colourmap_input_range.set (tmp_vvec[0], tmp_vvec[1]);
             reliefmap_input_range.set (tmp_vvec[0], tmp_vvec[1]);
         }
-        tmp_vvec = conf.getvvec<float> ("reliefmap_input_range");
+        tmp_vvec = conf.get_vvec<float> ("reliefmap_input_range");
         if (tmp_vvec.size() == 2) { reliefmap_input_range.set (tmp_vvec[0], tmp_vvec[1]); }
-        tmp_vvec = conf.getvvec<float> ("reliefmap_output_range");
+        tmp_vvec = conf.get_vvec<float> ("reliefmap_output_range");
         if (tmp_vvec.size() == 2) { reliefmap_output_range.set (tmp_vvec[0], tmp_vvec[1]); }
     }
 
@@ -97,7 +99,7 @@ int main (int argc, char** argv)
 
     // Create a HealpixVisual
     auto hpv = std::make_unique<mplot::HealpixVisual<float>> (sm::vec<float>{0,0,0});
-    v.bindmodel (hpv);
+    hpv->set_parent (v.get_id());
     hpv->set_order (ord - order_reduce);
     // Could set radius in hpv if required, but seems simplest to leave it always as 1
 
@@ -108,7 +110,7 @@ int main (int argc, char** argv)
     hpv->pixeldata.resize (hpv->n_pixels());
     if (ordering[0] == 'R') { // R means ring ordering
         for (int64_t i_nest = 0; i_nest < 12 * nside * nside; i_nest++) {
-            int64_t i_ring = hp::nest2ring (nside, i_nest);
+            int64_t i_ring = sm::hp::nest2ring (nside, i_nest);
             int64_t i_nest_down = i_nest >> (2 * order_reduce);
             hpv->pixeldata[i_nest_down] += hpmap[i_ring] * downmult;
         }
@@ -173,14 +175,14 @@ int main (int argc, char** argv)
        << hpvp->cm.getTypeStr() << ")";
     auto tv = std::make_unique<mplot::TxtVisual<>> (ss.str(), sm::vec<float>{-1,1.3,0},
                                                     mplot::TextFeatures{0.05f, centre_horz});
-    v.bindmodel (tv);
+    tv->set_parent (v.get_id());
     tv->twodimensional (true);
     tv->finalize();
     v.addVisualModel (tv);
 
     // VisualModel 3. Add a colour bar
     auto cbv =  std::make_unique<mplot::ColourBarVisual<float>>(sm::vec<float>{1.5,0,0});
-    v.bindmodel (cbv);
+    cbv->set_parent (v.get_id());
     cbv->orientation = mplot::colourbar_orientation::vertical;
     cbv->tickside = mplot::colourbar_tickside::right_or_below;
     // Copy colourmap and scale from HealpixVisual to colourbar visual:
@@ -209,14 +211,14 @@ int main (int argc, char** argv)
             std::cout << "Unknown projection " << projection_type << ", reverting to equirectangular\n";
             projection_type = "equirectangular";
         }
-        sm::vec<float> ppos = conf.getvec<float, 3>("projection_position");
+        sm::vec<float> ppos = conf.get_vec<float, 3>("projection_position");
 
         // Create data for 2D projection (latitude-longitude and a copy of the colours)
         sm::vvec<std::array<float, 3>> hpvcolours (hpvp->pixeldata.size(), mplot::colour::crimson);
         sm::vvec<sm::vec<float, 2>> latlong (hpvp->pixeldata.size());
         for (uint32_t i = 0; i < hpvp->pixeldata.size(); ++i) {
             // ang.theta is co-latitude (and needs re-casting to be longitude), ang.phi is a longitude
-            hp::t_ang ang = hp::nest2ang (hpvp->get_nside(), i);
+            sm::hp::t_ang ang = sm::hp::nest2ang (hpvp->get_nside(), i);
             // ang.theta is pi for the South pole and 0 for the North pole
             // latitude should be in range -pi/2 (S) < lat <= pi/2 (N)
             float _lat = (sm::mathconst<float>::pi - ang.theta) - sm::mathconst<float>::pi_over_2;
@@ -226,7 +228,7 @@ int main (int argc, char** argv)
 
         // Make the SphericalProjectionVisual
         auto spv = std::make_unique<mplot::SphericalProjectionVisual<float>> (ppos);
-        v.bindmodel (spv);
+        spv->set_parent (v.get_id());
         spv->twodimensional (true);
         spv->proj_type = ptype;
         spv->latlong = latlong;

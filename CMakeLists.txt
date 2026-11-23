@@ -55,6 +55,9 @@ setup_module_variables_for_maths (${PROJECT_SOURCE_DIR}/maths)
 # Include mathplot module defs by running two macros from sebsjames/mathplot
 include(${PROJECT_SOURCE_DIR}/mathplot/cmake/module_definitions.cmake)
 setup_module_variables_for_mathplot (${PROJECT_SOURCE_DIR}/mathplot ${PROJECT_SOURCE_DIR}/maths)
+# sm.config
+include(${PROJECT_SOURCE_DIR}/maths_config/cmake/module_definitions.cmake)
+setup_module_variables_for_maths_config (${PROJECT_SOURCE_DIR}/maths_config ${PROJECT_SOURCE_DIR}/json ${PROJECT_SOURCE_DIR}/maths)
 
 
 #
@@ -63,10 +66,12 @@ setup_module_variables_for_mathplot (${PROJECT_SOURCE_DIR}/mathplot ${PROJECT_SO
 
 # For mathplot, we must build the glad library here
 add_library(glad STATIC ${MPLOT_INCLUDE_PATH}/mplot/glad/gl.c)
+target_include_directories(glad AFTER PRIVATE ${PROJECT_SOURCE_DIR}/mathplot)
 
 # We have to build the mathplot fonts data library - this packs up
 # some TTF fonts into an object file; they're unpacked at runtime.
 add_library(mplot_fontdata STATIC ${MPLOT_INCLUDE_PATH}/mplot/VisualFaceAsm.cpp)
+target_include_directories(mplot_fontdata AFTER PRIVATE ${PROJECT_SOURCE_DIR}/mathplot)
 
 #
 # Compile a library with the mathplot features we want
@@ -74,8 +79,12 @@ add_library(mplot_fontdata STATIC ${MPLOT_INCLUDE_PATH}/mplot/VisualFaceAsm.cpp)
 
 # Define a list of the modules we wish to compile into our library
 set(MATHPLOT_MODULES
+  ${SM_CONFIG_MODULES}
   ${MPLOT_CORE_MODULES}
-  ${PROJECT_SOURCE_DIR}/mathplot/mplot/GeodesicVisual.cppm  # The example uses a GeodesicVisual
+  ${PROJECT_SOURCE_DIR}/mathplot/mplot/TxtVisual.cppm
+  ${PROJECT_SOURCE_DIR}/mathplot/mplot/ColourBarVisual.cppm
+  ${PROJECT_SOURCE_DIR}/mathplot/mplot/HealpixVisual.cppm
+  ${PROJECT_SOURCE_DIR}/mathplot/mplot/SphericalProjectionVisual.cppm
 )
 # De-duplicate the list
 list(REMOVE_DUPLICATES MATHPLOT_MODULES)
@@ -90,7 +99,7 @@ target_sources(mathplot_modules
 target_link_libraries(mathplot_modules OpenGL::GL Freetype::Freetype glfw glad mplot_fontdata)
 # mathplot needs these includes
 target_include_directories(mathplot_modules AFTER PRIVATE ${OPENGL_INCLUDE_DIR} ${FREETYPE_INCLUDE_DIRS} ${MPLOT_INCLUDE_PATH}/mplot/glad)
-target_include_directories(mathplot_modules AFTER PRIVATE ${PROJECT_SOURCE_DIR}/mathplot)
+target_include_directories(mathplot_modules AFTER PRIVATE ${PROJECT_SOURCE_DIR}/mathplot ${PROJECT_SOURCE_DIR}/json/include)
 
 #
 # Now it's time to define how we will compile the program
