@@ -2,32 +2,30 @@
 
 ![A view of Earth's topograpy and the cosmic microwave background radiation](https://github.com/sebjameswml/healpixviewer/blob/main/images/Earth_and_CMBR.png?raw=true)
 
-This is a simple HEALPix viewer, which uses the [`mplot::HealpixVisual`](https://github.com/sebsjames/mathplot/blob/main/morph/HealpixVisual.h) class from [mathplot](https://github.com/sebsjames/mathplot).
+This is a simple HEALPix viewer, which uses the [`mplot::HealpixVisual`](https://github.com/sebsjames/mathplot/blob/main/mplot/HealpixVisual.cppm) class from [mathplot](https://github.com/sebsjames/mathplot).
 
 It plots your scalar-valued HEALPix dataset on the sphere using a colour map *and* optionally relief to indicate value. There is a wide choice of colour maps (including those from [CET](https://colorcet.com), matplotlib and [Fabio Crameri](https://www.fabiocrameri.ch/colourmaps/)) which, along with the relief scaling, can be configured via a simple JSON file.
 
 ## Dependencies
 
 If you are using Debian or Ubuntu, the following `apt` command should
-install the mathplot dependencies as well as the official Healpix
+install the mathplot OpenGL dependencies as well as the official Healpix
 C library.
 
 ```bash
-sudo apt install build-essential cmake git wget  \
-                 nlohmann-json3-dev librapidxml-dev \
+sudo apt install build-essential cmake git wget  \                 
                  freeglut3-dev libglu1-mesa-dev libxmu-dev libxi-dev \
                  libglfw3-dev libfreetype-dev libchealpix-dev
 ```
 
 On Arch Linux, this should be the `pacman` command:
 ```bash
-sudo pacman -S vtk lapack blas freeglut glfw-wayland nlohmann-json chealpix
+sudo pacman -S vtk lapack blas freeglut glfw-wayland chealpix
 ```
 
 On Fedora Linux, the following `dnf` command should install the dependencies:
 ```bash
 sudo dnf install gcc cmake libglvnd-devel mesa-libGL-devel glfw-devel \
-                 json-devel rapidxml-devel \
                  freetype-devel cfitsio-dev chealpix-dev
 ```
 
@@ -37,23 +35,32 @@ for help. You only need to obtain and build
 [glfw3](https://github.com/sebsjames/mathplot/blob/main/README.build.mac.md#glfw3);
 OpenGL and Freetype should already be installed by default.
 
-On Windows, you will hopefully in future use vcpkg to install mathplot and its
-dependencies and you should be able to compile with Visual Studio (this worked with morphologica but at time of writing has not been set up for mathplot). If
-the program runs slowly, try rebuilding in Release mode rather than
-Debug mode.
+On both Mac and Linux, you will need to compile with the clang compiler version 20 or higher.
+The mathplot code is all written as C++ 20 modules, and unfortunately, both GCC and VisualStudio are not yet fully modules compliant.
+
+Install on Debian/Ubuntu Linux with
+
+```bash
+sudo apt install clang-20 clang-tools-20
+```
 
 ## Building
 
 To build and run the viewer:
 
 ```bash
-git clone --recurse-submodules git@github.com:sebsjames/healpixviewer
+git clone git@github.com:sebsjames/healpixviewer
 
 cd healpixviewer
+
+# Bring in submodules (mathplot, maths, maths_config, json):
+git submodule init
+git submodule update
+
 mkdir build
 cd build
-cmake ..
-make
+CC=clang-20 CXX=clang++-20 cmake .. -GNinja
+ninja
 ./viewer path/to/fitfile.fit
 ```
 
