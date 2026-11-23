@@ -13,7 +13,7 @@ install the mathplot OpenGL dependencies as well as the official Healpix
 C library.
 
 ```bash
-sudo apt install build-essential cmake git wget  \                 
+sudo apt install build-essential cmake git ninja-build \
                  freeglut3-dev libglu1-mesa-dev libxmu-dev libxi-dev \
                  libglfw3-dev libfreetype-dev libchealpix-dev
 ```
